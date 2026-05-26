@@ -226,7 +226,12 @@ wheels = [
 ]
 
 [[package]]
-name = "q-cura-api"
+name = "q-haderslev-vbo"
+version = "0.1.1"
+source = { git = "https://github.com/haderslev-rpa/q-haderslev-vbo.git?branch=main#e7deb5d46ad1be0f783d7b8ef246af234b563b3c" }
+
+[[package]]
+name = "q-skabelon-object"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
@@ -241,11 +246,6 @@ requires-dist = [
     { name = "q-haderslev-vbo", git = "https://github.com/haderslev-rpa/q-haderslev-vbo.git?branch=main" },
     { name = "requests", specifier = ">=2.31.0" },
 ]
-
-[[package]]
-name = "q-haderslev-vbo"
-version = "0.1.1"
-source = { git = "https://github.com/haderslev-rpa/q-haderslev-vbo.git?branch=main#e7deb5d46ad1be0f783d7b8ef246af234b563b3c" }
 
 [[package]]
 name = "requests"
