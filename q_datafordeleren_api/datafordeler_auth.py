@@ -1,12 +1,14 @@
 import requests  # bibliotek (HTTP-kald)
 import time  # modul (tid)
-from automation_server_client import Credential  # klasse (credential-adgang)
+from automation_server_client import AutomationServer, Credential  # klasser (API-adgang)
 
+# initialiser automation server (påkrævet)
+AutomationServer.from_environment()
 
-_df_cred = Credential.get_credential("API_DATAFORDELER")  # credential (hemmelig konfig)
+# hent credential (hemmelig konfig)
+_df_cred = Credential.get_credential("API_DATAFORDELEREN")
+
 _cfg = _df_cred.data  # dict (nøgler/værdier)
-_cert_password = _df_cred.password  # password (hemmelig)
-
 
 _cached_token = None  # variabel (cache)
 _expires_at = 0  # variabel (udløbstid)
@@ -17,7 +19,15 @@ def get_token():
     global _cached_token, _expires_at
 
     now = int(time.time())
+
+    #print("🔍 DEBUG: Starter get_token()")
+    #print("🔍 DEBUG: Cert:", _cfg["cert_path"])
+    #print("🔍 DEBUG: Key:", _cfg["key_path"])
+    #print("🔍 DEBUG CLIENT ID:", _cfg["client_id"])
+
+    # brug cache hvis muligt
     if _cached_token and now < _expires_at - 60:
+       # print("✅ DEBUG: Bruger cached token")
         return _cached_token
 
     data = {
@@ -25,20 +35,35 @@ def get_token():
         "client_id": _cfg["client_id"]
     }
 
-    r = requests.post(
-        _cfg["token_url"],
-        data=data,
-        cert=(
-            _cfg["cert_path"],
-            _cert_password
-        ),  # certifikat (fil) + password
-        verify=True
+    cert = (
+        _cfg["cert_path"],  # .pem
+        _cfg["key_path"]    # .key
     )
-    r.raise_for_status()
+
+    print("🔍 DEBUG: Sender request til token endpoint...")
+
+    try:
+        r = requests.post(
+            "https://auth-oces.datafordeler.dk/realms/distribution/protocol/openid-connect/token",
+            data=data,
+            cert=cert,
+            verify=True
+        )
+
+        print("🔍 DEBUG: Status code:", r.status_code)
+       # print("🔍 DEBUG: Response:", r.text)
+
+        r.raise_for_status()
+
+    except Exception as e:
+        print("❌ DEBUG FEJL:", str(e))
+        raise
 
     token_data = r.json()
 
     _cached_token = token_data["access_token"]
     _expires_at = now + token_data.get("expires_in", 3600)
+
+    print("✅ DEBUG: Token hentet")
 
     return _cached_token
