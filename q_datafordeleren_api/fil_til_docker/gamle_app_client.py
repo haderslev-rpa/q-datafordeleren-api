@@ -1,6 +1,9 @@
-# datafordeler_client.py
+### OBS OBS OBS###
+#FILER ER LAVET TIL ATS HVOR INDHOLDET ER LAGT IND IND OG KØRER I DOCKER.
+#DENNE KODE ER DERFOR KUN TIL AT FÅ DATA OP PÅ GITHUB
+
 import requests  # bibliotek (HTTP-kald)
-from q_datafordeleren_api.datafordeler_auth import get_token  # funktion (token)
+from q_datafordeleren_api.app_internal_api.gamle_app_auth import get_token  # funktion (token)
 
 
 class DatafordelerClient:
@@ -10,19 +13,17 @@ class DatafordelerClient:
         self.base_url = "https://graphql.datafordeler.dk/CPR/custom/PublicSector/v1"
 
     # -------------------------------------------------
-    # FULL CPR DATA (stabil version)
+    # FULL CPR DATA (samme struktur)
     # -------------------------------------------------
-    def lookup_cpr_full(self, cpr_number):
-        """Hent fuld CPR data (funktion – genbrugelig kodeblok)"""
+    def lookup_cpr_full(self, cpr_number, client_id, cert_path, key_path):
 
-        token = get_token()
+        token = get_token(client_id, cert_path, key_path)
 
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
 
-        # ✅ STABIL query (alle nødvendige felter)
         query = """
         query ($cpr: [String!]!) {
           CPRCustom_PublicSectorPerson(
@@ -38,14 +39,12 @@ class DatafordelerClient:
               id
               status
               koen
-
               navne {
                 fornavne
                 mellemnavn
                 efternavn
                 status
               }
-
               adresseoplysninger {
                 cprAdresse {
                   vejnavn
@@ -58,14 +57,12 @@ class DatafordelerClient:
                 virkningfra
                 virkningtil
               }
-
               beskyttelser {
                 beskyttelsestype
                 status
                 virkningfra
                 virkningtil
               }
-
               civilstande {
                 civilstandstype
                 status
@@ -98,12 +95,11 @@ class DatafordelerClient:
         return r.json()
 
     # -------------------------------------------------
-    # AKTUEL NAVN OG ADRESSE (BP venlig)
+    # AKTUEL NAVN OG ADRESSE (samme struktur)
     # -------------------------------------------------
-    def get_aktuel_navn_og_adresse(self, cpr_number):
-        """Hent aktuelt navn og adresse (funktion – genbrugelig kodeblok)"""
+    def get_aktuel_navn_og_adresse(self, cpr_number, client_id, cert_path, key_path):
 
-        token = get_token()
+        token = get_token(client_id, cert_path, key_path)
 
         headers = {
             "Authorization": f"Bearer {token}",
@@ -170,22 +166,14 @@ class DatafordelerClient:
 
         data = r.json()
 
-        # ✅ hent første element
         node = data["data"]["CPRCustom_PublicSectorPerson"]["nodes"][0]
 
-        # ✅ aktuelt navn
         navn = next((n for n in node["navne"] if n["status"] == "aktuel"), None)
-
-        # ✅ aktuel adresse
         adresse = next((a for a in node["adresseoplysninger"] if a["status"] == "aktuel"), None)
 
-        # ✅ postnr + by
         postnr_og_by = None
         if adresse:
-            postnr_og_by = (
-                f"{adresse['cprAdresse']['postnummer']} "
-                f"{adresse['cprAdresse']['bynavn']}"
-            )
+            postnr_og_by = f"{adresse['cprAdresse']['postnummer']} {adresse['cprAdresse']['bynavn']}"
 
         return {
             "fornavn": navn["fornavne"] if navn else None,
