@@ -1,7 +1,6 @@
 from automation_server_client import AutomationServer, Credential
 from q_datafordeleren_api.core.datafordeler_client import DatafordelerClient
 
-
 def _get_cfg():
     AutomationServer.from_environment()
     cred = Credential.get_credential("API_DATAFORDELEREN")
