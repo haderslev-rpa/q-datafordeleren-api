@@ -6,7 +6,7 @@ from q_datafordeleren_api.functionality.datafordeler_use import get_aktuel_navn_
 
 load_dotenv()
 
-TEST_CPR = os.getenv("cpr_doed")
+TEST_CPR = os.getenv("cpr1")
 
 print("\n🚀 TEST: AKTUEL NAVN OG ADRESSE\n")
 
