@@ -15,6 +15,25 @@ class DatafordelerClient:
         """Konverterer None til tom tekst (funktion (genbrugelig kodeblok))"""
         return value if value is not None else ""
 
+    def _normaliser_cpr(self, cpr_number):
+        """
+        Normaliserer CPR-nummer.
+
+        Fjerner:
+        - bindestreg
+        - mellemrum
+
+        Eksempler:
+        - "123456-7890" bliver "1234567890"
+        - "123456 7890" bliver "1234567890"
+        - "1234567890" forbliver "1234567890"
+        """
+
+        if cpr_number is None:
+            return ""
+
+        return str(cpr_number).replace("-", "").replace(" ", "").strip()
+
     def _format_etage(self, etage):
         """
         Formaterer etage til dansk adresseformat.
@@ -56,6 +75,9 @@ class DatafordelerClient:
 
     def _cpr_format_ok(self, cpr_number):
         """Tjekker CPR-format (funktion (genbrugelig kodeblok))"""
+
+        cpr_number = self._normaliser_cpr(cpr_number)
+
         return bool(cpr_number) and cpr_number.isdigit() and len(cpr_number) == 10
 
     def _empty_aktuel_result(self):
@@ -280,6 +302,9 @@ class DatafordelerClient:
     def get_aktuel_navn_og_adresse(self, cpr_number, client_id, cert_path, key_path):
         """Henter aktuelt navn og adresse (funktion (genbrugelig kodeblok))"""
 
+        # Fjerner bindestreg og mellemrum fra CPR før validering og opslag
+        cpr_number = self._normaliser_cpr(cpr_number)
+
         if not self._cpr_format_ok(cpr_number):
             result = self._empty_aktuel_result()
             result["cpr_format_ok"] = False
@@ -382,6 +407,9 @@ class DatafordelerClient:
     # -------------------------------------------------
     def lookup_cpr_full(self, cpr_number, client_id, cert_path, key_path):
         """Henter fulde CPR data (funktion (genbrugelig kodeblok))"""
+
+        # Fjerner bindestreg og mellemrum fra CPR før validering og opslag
+        cpr_number = self._normaliser_cpr(cpr_number)
 
         if not self._cpr_format_ok(cpr_number):
             return {
