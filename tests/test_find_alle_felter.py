@@ -60,80 +60,231 @@ BASE_URL = "https://graphql.datafordeler.dk/CPR/custom/PublicSector/v1"
 
 
 # -------------------------------------------------
-# Mulige felter på CPRCustom_PublicSectorPerson
+# NOTE OM DENNE TESTFIL
 # -------------------------------------------------
-# OBS:
-# Datafordeler tillader IKKE aliases.
-# Derfor må vi IKKE skrive:
-# testField: navne
+# Denne testfil (kodefil) tester underfelter (felter inde i felter)
+# på de GraphQL-felter (API-felter), vi allerede har bekræftet virker:
 #
-# Vi skriver kun feltets rigtige navn direkte.
+# - boern
+# - foraeldremyndighedsoplysninger
+#
+# Datafordeler kræver beskyttelser i alle queries (forespørgsler).
+# Datafordeler tillader ikke aliases (alternative feltnavne).
+# Derfor bruges ingen aliases i denne fil.
 # -------------------------------------------------
 
-CANDIDATE_FIELDS = [
-    # Kendte felter
-    "navne",
-    "adresseoplysninger",
-    "civilstande",
 
-    # Forældre / børn / relationer
-    "foraelderoplysninger",
-    "foraelderoplysning",
-    "foraeldre",
-    "foraelder",
+TESTS = [
+    # -------------------------------------------------
+    # BØRN - basis
+    # -------------------------------------------------
+    {
+        "name": "1 - boern kun typename",
+        "block": """
+          boern {
+            __typename
+          }
+        """
+    },
 
-    # Forældremyndighed
-    "foraeldremyndighedsoplysninger",
-    "foraeldremyndighedsoplysning",
-    "foraeldremyndighed",
-    "foraeldremyndigheder",
-    "foraeldremyndighedshavere",
+    {
+        "name": "2 - boern med status/virkning",
+        "block": """
+          boern {
+            status
+            virkningfra
+            virkningtil
+          }
+        """
+    },
 
-    # Børn
-    "boern",
-    "boerneoplysninger",
-    "barn",
-    "born",
+    {
+        "name": "3 - boern med personnummer direkte",
+        "block": """
+          boern {
+            personnummer
+          }
+        """
+    },
 
-    # Delt bopæl
-    "deltbopael",
-    "deltbopaele",
-    "deltebopaele",
+    {
+        "name": "4 - boern med barn direkte",
+        "block": """
+          boern {
+            barn
+          }
+        """
+    },
 
-    # Udrejse / indrejse
-    "udrejseIndrejser",
-    "udrejseIndrejse",
-    "udrejseindrejser",
+    {
+        "name": "5 - boern med barn personnumre",
+        "block": """
+          boern {
+            barn {
+              personnumre {
+                personnummer
+                status
+                virkningfra
+                virkningtil
+              }
+            }
+          }
+        """
+    },
 
-    # Forsvinding
-    "forsvindinger",
-    "forsvinding",
+    {
+        "name": "6 - boern med barn id/status",
+        "block": """
+          boern {
+            barn {
+              id
+              status
+              koen
+            }
+          }
+        """
+    },
 
-    # Statsborgerskab
-    "statsborgerskaber",
-    "statsborgerskab",
+    {
+        "name": "7 - boern med barn navne",
+        "block": """
+          boern {
+            barn {
+              navne {
+                fornavne
+                mellemnavn
+                efternavn
+                status
+              }
+            }
+          }
+        """
+    },
 
-    # Personnummer
-    "personnumre",
-    "personnummer",
+    {
+        "name": "8 - boern med barn personnummer objekt",
+        "block": """
+          boern {
+            barn {
+              personnummer {
+                personnummer
+              }
+            }
+          }
+        """
+    },
 
-    # Kontaktadresse
-    "kontaktadresser",
-    "kontaktadresse",
+    {
+        "name": "9 - boern med relationstype/rolle",
+        "block": """
+          boern {
+            relationstype
+            rolle
+            status
+          }
+        """
+    },
 
-    # Værgemål
-    "vaergemaal",
-    "vaergemaaler",
+    {
+        "name": "10 - boern med alle sandsynlige simple felter",
+        "block": """
+          boern {
+            status
+            virkningfra
+            virkningtil
+            registreringfra
+          }
+        """
+    },
 
-    # Kommunale forhold
-    "kommunaleForhold",
+    # -------------------------------------------------
+    # FORÆLDREMYNDIGHED - basis
+    # -------------------------------------------------
+    {
+        "name": "11 - foraeldremyndighedsoplysninger kun typename",
+        "block": """
+          foraeldremyndighedsoplysninger {
+            __typename
+          }
+        """
+    },
 
-    # Folkekirke
-    "folkekirke",
+    {
+        "name": "12 - foraeldremyndighedsoplysninger med rolle",
+        "block": """
+          foraeldremyndighedsoplysninger {
+            foraeldremyndighedsindehaverrolle
+          }
+        """
+    },
 
-    # Notater
-    "notater",
-    "notat",
+    {
+        "name": "13 - foraeldremyndighedsoplysninger med virkning",
+        "block": """
+          foraeldremyndighedsoplysninger {
+            virkningfra
+            virkningtil
+          }
+        """
+    },
+
+    {
+        "name": "14 - foraeldremyndighedsoplysninger med haver direkte",
+        "block": """
+          foraeldremyndighedsoplysninger {
+            foraeldremyndighedshaver {
+              id
+              status
+              koen
+            }
+          }
+        """
+    },
+
+    {
+        "name": "15 - foraeldremyndighedsoplysninger med haver personnumre",
+        "block": """
+          foraeldremyndighedsoplysninger {
+            foraeldremyndighedshaver {
+              personnumre {
+                personnummer
+                status
+                virkningfra
+                virkningtil
+              }
+            }
+          }
+        """
+    },
+
+    {
+        "name": "16 - foraeldremyndighedsoplysninger over barn",
+        "block": """
+          foraeldremyndighedsoplysninger {
+            foraeldremyndighedOver {
+              id
+              status
+              koen
+            }
+          }
+        """
+    },
+
+    {
+        "name": "17 - foraeldremyndighedsoplysninger over barn personnumre",
+        "block": """
+          foraeldremyndighedsoplysninger {
+            foraeldremyndighedOver {
+              personnumre {
+                personnummer
+                status
+                virkningfra
+                virkningtil
+              }
+            }
+          }
+        """
+    },
 ]
 
 
@@ -146,10 +297,10 @@ def get_credentials():
     return cred.data
 
 
-def build_query_for_field(field_name):
-    """Bygger GraphQL-query (API-forespørgsel) uden aliases"""
+def build_query(block):
+    """Bygger GraphQL query (API-forespørgsel)"""
 
-    query = f"""
+    return f"""
     query ($cpr: [String!]!) {{
       CPRCustom_PublicSectorPerson(
         input: {{
@@ -172,21 +323,17 @@ def build_query_for_field(field_name):
             virkningtil
           }}
 
-          {field_name} {{
-            __typename
-          }}
+          {block}
         }}
       }}
     }}
     """
 
-    return query
 
+def run_test(test, cpr, headers):
+    """Kører én test (funktion (genbrugelig kodeblok))"""
 
-def run_single_field_test(field_name, cpr, headers):
-    """Tester ét felt (funktion (genbrugelig kodeblok))"""
-
-    query = build_query_for_field(field_name)
+    query = build_query(test["block"])
 
     body = {
         "query": query,
@@ -209,33 +356,31 @@ def run_single_field_test(field_name, cpr, headers):
         }
 
     return {
-        "field_name": field_name,
+        "name": test["name"],
         "status_code": response.status_code,
         "response": response_json,
         "query": query
     }
 
 
-def print_field_result(result):
+def print_result(result):
     """Printer resultat (funktion (genbrugelig kodeblok))"""
 
-    field_name = result["field_name"]
-    status_code = result["status_code"]
-    response = result["response"]
-
     print("\n" + "=" * 100)
-    print(f"Tester felt: {field_name}")
+    print(result["name"])
     print("=" * 100)
-    print("HTTP status:", status_code)
 
+    print("HTTP status:", result["status_code"])
+
+    response = result["response"]
     errors = response.get("errors")
 
-    if status_code == 200 and not errors:
-        print("✅ FELT FINDES")
-        pprint(response, width=140)
+    if result["status_code"] == 200 and not errors:
+        print("✅ VIRKER")
+        pprint(response, width=160)
         return True
 
-    print("❌ FELT FEJLER")
+    print("❌ FEJLER")
 
     if errors:
         for error in errors:
@@ -245,7 +390,7 @@ def print_field_result(result):
             if extensions:
                 print("  Extensions:", extensions)
     else:
-        pprint(response, width=140)
+        pprint(response, width=160)
 
     return False
 
@@ -274,40 +419,35 @@ def main():
         "Content-Type": "application/json"
     }
 
-    print("\n🚀 Tester GraphQL-felter på CPRCustom_PublicSectorPerson")
+    print("\n🚀 Tester børn og forældremyndighed")
     print("🔍 CPR:", cpr)
-    print("🔍 Antal felter:", len(CANDIDATE_FIELDS))
+    print("🔍 Antal tests:", len(TESTS))
 
-    fields_that_exist = []
-    fields_that_fail = []
+    virker = []
+    fejler = []
 
-    for field_name in CANDIDATE_FIELDS:
-        result = run_single_field_test(
-            field_name=field_name,
-            cpr=cpr,
-            headers=headers
-        )
-
-        ok = print_field_result(result)
+    for test in TESTS:
+        result = run_test(test, cpr, headers)
+        ok = print_result(result)
 
         if ok:
-            fields_that_exist.append(field_name)
+            virker.append(test["name"])
         else:
-            fields_that_fail.append(field_name)
+            fejler.append(test["name"])
 
     print("\n" + "#" * 100)
-    print("✅ FELTER DER FINDES")
+    print("✅ TESTS DER VIRKER")
     print("#" * 100)
 
-    for field_name in fields_that_exist:
-        print("✅", field_name)
+    for item in virker:
+        print("✅", item)
 
     print("\n" + "#" * 100)
-    print("❌ FELTER DER FEJLER")
+    print("❌ TESTS DER FEJLER")
     print("#" * 100)
 
-    for field_name in fields_that_fail:
-        print("❌", field_name)
+    for item in fejler:
+        print("❌", item)
 
 
 if __name__ == "__main__":

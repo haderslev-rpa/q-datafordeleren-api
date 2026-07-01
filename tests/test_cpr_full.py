@@ -6,7 +6,7 @@ from q_datafordeleren_api.functionality.datafordeler_use import lookup_cpr_full
 
 load_dotenv()
 
-TEST_CPR = os.getenv("cpr_doed")
+TEST_CPR = os.getenv("cpr1")
 
 print("\n🚀 TEST: FULL CPR DATA\n")
 

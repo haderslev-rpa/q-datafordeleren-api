@@ -15,6 +15,45 @@ class DatafordelerClient:
         """Konverterer None til tom tekst (funktion (genbrugelig kodeblok))"""
         return value if value is not None else ""
 
+    def _format_etage(self, etage):
+        """
+        Formaterer etage til dansk adresseformat.
+
+        Eksempler:
+        - "2" bliver "2."
+        - "1" bliver "1."
+        - "st" bliver "st."
+        - "stue" bliver "st."
+        - "kl" bliver "kl."
+        - "2." forbliver "2."
+        """
+
+        etage = self._txt(etage).strip()
+
+        if not etage:
+            return ""
+
+        etage_lower = etage.lower()
+
+        # Hvis Datafordeleren allerede sender punktum, beholdes værdien
+        if etage.endswith("."):
+            return etage
+
+        # Stueetage
+        if etage_lower in ["st", "stue", "stuen"]:
+            return "st."
+
+        # Kælder
+        if etage_lower in ["kl", "kld", "kælder", "kaelder"]:
+            return "kl."
+
+        # Almindelige etager som tal
+        if etage.isdigit():
+            return f"{etage}."
+
+        # Fallback: returnér som modtaget
+        return etage
+
     def _cpr_format_ok(self, cpr_number):
         """Tjekker CPR-format (funktion (genbrugelig kodeblok))"""
         return bool(cpr_number) and cpr_number.isdigit() and len(cpr_number) == 10
@@ -202,16 +241,28 @@ class DatafordelerClient:
         result["daradresse"] = self._txt(cpr_adresse.get("daradresse"))
         result["bygningsnummer"] = self._txt(cpr_adresse.get("bygningsnummer"))
 
-        adresse_linje = f"{vejnavn} {husnummer}".strip()
+        # -----------------------------
+        # Adresseformat til postadresse
+        # -----------------------------
+        # Brug vejadresseringsnavn hvis det findes, ellers brug vejnavn
+        adresse_vejnavn = vejadresseringsnavn or vejnavn
 
-        if etage:
-            adresse_linje += f", {etage}"
+        adresse_linje = f"{adresse_vejnavn} {husnummer}".strip()
 
-        if sidedoer:
-            adresse_linje += f" {sidedoer}"
+        formateret_etage = self._format_etage(etage)
+
+        if formateret_etage and sidedoer:
+            adresse_linje += f", {formateret_etage} {sidedoer}"
+        elif formateret_etage:
+            adresse_linje += f", {formateret_etage}"
+        elif sidedoer:
+            adresse_linje += f", {sidedoer}"
 
         result["adresse_linje"] = adresse_linje
 
+        # -----------------------------
+        # Postnummer og by
+        # -----------------------------
         if postnummer and postdistrikt:
             result["by_postnr"] = f"{postnummer} {postdistrikt}"
         elif postnummer:
@@ -219,7 +270,7 @@ class DatafordelerClient:
         elif postdistrikt:
             result["by_postnr"] = postdistrikt
 
-        result["har_aktuel_adresse"] = bool(vejnavn or husnummer or postnummer)
+        result["har_aktuel_adresse"] = bool(adresse_vejnavn or husnummer or postnummer)
 
         return self._build_kan_sendes_brev(result)
 
