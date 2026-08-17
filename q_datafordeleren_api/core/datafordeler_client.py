@@ -429,63 +429,139 @@ class DatafordelerClient:
 
         query = """
         query ($cpr: [String!]!) {
-          CPRCustom_PublicSectorPerson(
+        CPRCustom_PublicSectorPerson(
             input: {
-              personnummer: {
+            personnummer: {
                 personnummer: {
-                  in: $cpr
+                in: $cpr
                 }
-              }
             }
-          ) {
+            }
+        ) {
             nodes {
-              id
-              status
-              koen
 
-              navne {
+            id
+            status
+            statusdato
+            foedselsdato
+            koen
+
+            personnumre {
+                personnummer
+                status
+                virkningfra
+                virkningtil
+            }
+
+            navne {
+                adresseringsnavn
                 fornavne
                 mellemnavn
                 efternavn
                 status
-              }
+                virkningfra
+                virkningtil
+            }
 
-              adresseoplysninger {
-                cprAdresse {
-                  daradresse
-                  bygningsnummer
-                  bynavn
-                  cprkommunekode
-                  cprkommunenavn
-                  cprvejkode
-                  etage
-                  husnummer
-                  postdistrikt
-                  postnummer
-                  sidedoer
-                  vejadresseringsnavn
-                  vejnavn
-                }
+            adresseoplysninger {
                 status
                 virkningfra
                 virkningtil
-              }
 
-              beskyttelser {
+                cprAdresse {
+                daradresse
+                bygningsnummer
+                bynavn
+                cprkommunekode
+                cprkommunenavn
+                cprvejkode
+                etage
+                husnummer
+                postdistrikt
+                postnummer
+                sidedoer
+                vejadresseringsnavn
+                vejnavn
+                }
+            }
+
+            beskyttelser {
                 beskyttelsestype
                 status
                 virkningfra
                 virkningtil
-              }
+            }
 
-              civilstande {
+            civilstande {
                 civilstandstype
                 status
                 virkningfra
                 virkningtil
-              }
             }
-          }
+
+            boern {
+                virkningfra
+
+                barn {
+                personid
+                personnummer
+
+                beskyttelser {
+                    beskyttelsestype
+                    status
+                    virkningfra
+                    virkningtil
+                }
+
+                navn {
+                    adresseringsnavn
+                    fornavne
+                    mellemnavn
+                    efternavn
+                    status
+                }
+                }
+            }
+
+            foraeldreoplysninger {
+                virkningfra
+                foraelderrolle
+
+                foraelder {
+                personid
+                personnummer
+
+                beskyttelser {
+                    beskyttelsestype
+                    status
+                    virkningfra
+                    virkningtil
+                }
+
+                navn {
+                    adresseringsnavn
+                    fornavne
+                    mellemnavn
+                    efternavn
+                    status
+                }
+                }
+
+                foraelderUdenCpr {
+                personid
+                navn
+                foedselsdato
+                }
+
+                ikkeValidRelationsForaelder {
+                personid
+                personnummer
+                navn
+                foedselsdato
+                }
+            }
+            }
+        }
         }
         """
 
@@ -508,15 +584,361 @@ class DatafordelerClient:
         r.raise_for_status()
 
         data = r.json()
-        nodes = data["data"]["CPRCustom_PublicSectorPerson"]["nodes"]
 
+        nodes = (
+            data
+            .get("data", {})
+            .get("CPRCustom_PublicSectorPerson", {})
+            .get("nodes", [])
+        )
+
+        # -------------------------------------------------
+        # CPR blev ikke fundet
+        # -------------------------------------------------
         if not nodes:
             status = self._empty_aktuel_result()
+
             status["cpr_format_ok"] = True
             status["findes"] = False
-            data["opslag_status"] = self._build_kan_sendes_brev(status)
+
+            data["opslag_status"] = (
+                self._build_kan_sendes_brev(status)
+            )
+
+            # Samme outputstruktur, selv når CPR ikke findes
+            data["personnumre"] = {
+                "opslaaet_cpr": cpr_number,
+                "aktuelt_cpr": "",
+                "har_skiftet_cpr": False,
+                "alle_personnumre": []
+            }
+
+            data["boern"] = {
+                "antal_boern": 0,
+                "boern": []
+            }
+
+            data["foraeldre"] = {
+                "antal_foraeldre": 0,
+                "foraeldre": []
+            }
+
             return data
 
-        data["opslag_status"] = self._build_aktuel_result(nodes[0])
+        # -------------------------------------------------
+        # CPR blev fundet
+        # -------------------------------------------------
+        node = nodes[0]
+
+        # Aktuel status, navn og adresse
+        data["opslag_status"] = (
+            self._build_aktuel_result(node)
+        )
+
+        # Aktuelt og historiske CPR-numre
+        data["personnumre"] = (
+            self._build_personnumre(
+                personnumre=node.get(
+                    "personnumre",
+                    []
+                ),
+                opslaaet_cpr=cpr_number
+            )
+        )
+
+        # Børn
+        data["boern"] = (
+            self._build_boern(
+                node.get("boern", [])
+            )
+        )
+
+        # Forældre
+        data["foraeldre"] = (
+            self._build_foraeldre(
+                node.get(
+                    "foraeldreoplysninger",
+                    []
+                )
+            )
+        )
 
         return data
+
+    # -------------------------------------------------
+    # Byg personnummeroplysninger
+    # -------------------------------------------------
+    def _build_personnumre(self, personnumre, opslaaet_cpr):
+        """
+        Bygger en fast struktur med personnumre.
+
+        Returnerer:
+        - det CPR-nummer der blev slået op
+        - det aktuelle CPR-nummer
+        - om personen har skiftet CPR-nummer
+        - alle registrerede CPR-numre med status og datoer
+
+        har_skiftet_cpr bliver True når:
+        - personen har mere end ét registreret CPR-nummer
+        - eller det aktuelle CPR-nummer er forskelligt
+          fra det CPR-nummer, der blev slået op
+        """
+
+        personnumre = personnumre or []
+
+        aktuelt_cpr = ""
+
+        for personnummer_oplysning in personnumre:
+
+            status = self._txt(
+                personnummer_oplysning.get("status")
+            ).lower()
+
+            if status == "aktuel":
+                aktuelt_cpr = self._txt(
+                    personnummer_oplysning.get("personnummer")
+                )
+                break
+
+        har_skiftet_cpr = bool(
+            len(personnumre) > 1
+            or (
+                aktuelt_cpr
+                and aktuelt_cpr != opslaaet_cpr
+            )
+        )
+
+        return {
+            "opslaaet_cpr": opslaaet_cpr,
+            "aktuelt_cpr": aktuelt_cpr,
+            "har_skiftet_cpr": har_skiftet_cpr,
+            "alle_personnumre": personnumre
+        }
+    
+    # -------------------------------------------------
+    # Byg børneoplysninger
+    # -------------------------------------------------
+    def _build_boern(self, boern):
+        """
+        Bygger en fast struktur med børn.
+
+        Returnerer:
+        - antal børn
+        - person-id
+        - CPR-nummer
+        - navn
+        - virkningsdato
+        - om barnet har CPR-nummer
+        """
+
+        resultat = []
+
+        for barn_oplysning in boern or []:
+
+            barn = barn_oplysning.get("barn") or {}
+
+            personnummer = self._txt(
+                barn.get("personnummer")
+            )
+
+            navn_data = barn.get("navn") or {}
+
+            adresseringsnavn = self._txt(
+                navn_data.get("adresseringsnavn")
+            )
+
+            if adresseringsnavn:
+                navn = adresseringsnavn
+            else:
+                navn_dele = [
+                    self._txt(navn_data.get("fornavne")),
+                    self._txt(navn_data.get("mellemnavn")),
+                    self._txt(navn_data.get("efternavn"))
+                ]
+
+                navn = " ".join(
+                    navn_del
+                    for navn_del in navn_dele
+                    if navn_del
+                )
+
+            resultat.append(
+                {
+                    "personid": self._txt(
+                        barn.get("personid")
+                    ),
+                    "personnummer": personnummer,
+                    "navn": navn,
+                    "virkningfra": self._txt(
+                        barn_oplysning.get("virkningfra")
+                    ),
+                    "har_cpr": bool(personnummer)
+                }
+            )
+
+        return {
+            "antal_boern": len(resultat),
+            "boern": resultat
+        }
+
+    # -------------------------------------------------
+    # Byg forældreoplysninger
+    # -------------------------------------------------
+    def _build_foraeldre(self, foraeldreoplysninger):
+        """
+        Bygger en fast struktur med forældre.
+
+        Understøtter:
+        - forælder med CPR-nummer
+        - forælder uden CPR-nummer
+        - ikke-valid forældrerelation
+
+        Feltet relationstype fortæller, hvilken type
+        relation Datafordeleren returnerede.
+        """
+
+        resultat = []
+
+        for relation in foraeldreoplysninger or []:
+
+            foraelder = relation.get("foraelder")
+            foraelder_uden_cpr = relation.get(
+                "foraelderUdenCpr"
+            )
+            ikke_valid_foraelder = relation.get(
+                "ikkeValidRelationsForaelder"
+            )
+
+            standard = {
+                "foraelderrolle": self._txt(
+                    relation.get("foraelderrolle")
+                ),
+                "virkningfra": self._txt(
+                    relation.get("virkningfra")
+                ),
+                "relationstype": "",
+                "personid": "",
+                "personnummer": "",
+                "navn": "",
+                "foedselsdato": "",
+                "har_cpr": False
+            }
+
+            # -----------------------------------------
+            # Forælder med CPR-nummer
+            # -----------------------------------------
+            if foraelder:
+
+                navn_data = foraelder.get("navn") or {}
+
+                adresseringsnavn = self._txt(
+                    navn_data.get("adresseringsnavn")
+                )
+
+                if adresseringsnavn:
+                    navn = adresseringsnavn
+                else:
+                    navn_dele = [
+                        self._txt(
+                            navn_data.get("fornavne")
+                        ),
+                        self._txt(
+                            navn_data.get("mellemnavn")
+                        ),
+                        self._txt(
+                            navn_data.get("efternavn")
+                        )
+                    ]
+
+                    navn = " ".join(
+                        navn_del
+                        for navn_del in navn_dele
+                        if navn_del
+                    )
+
+                personnummer = self._txt(
+                    foraelder.get("personnummer")
+                )
+
+                standard.update(
+                    {
+                        "relationstype": "person_med_cpr",
+                        "personid": self._txt(
+                            foraelder.get("personid")
+                        ),
+                        "personnummer": personnummer,
+                        "navn": navn,
+                        "har_cpr": bool(personnummer)
+                    }
+                )
+
+            # -----------------------------------------
+            # Forælder uden CPR-nummer
+            # -----------------------------------------
+            elif foraelder_uden_cpr:
+
+                standard.update(
+                    {
+                        "relationstype": "person_uden_cpr",
+                        "personid": self._txt(
+                            foraelder_uden_cpr.get(
+                                "personid"
+                            )
+                        ),
+                        "personnummer": "",
+                        "navn": self._txt(
+                            foraelder_uden_cpr.get("navn")
+                        ),
+                        "foedselsdato": self._txt(
+                            foraelder_uden_cpr.get(
+                                "foedselsdato"
+                            )
+                        ),
+                        "har_cpr": False
+                    }
+                )
+
+            # -----------------------------------------
+            # Ikke-valid forældrerelation
+            # -----------------------------------------
+            elif ikke_valid_foraelder:
+
+                personnummer = self._txt(
+                    ikke_valid_foraelder.get(
+                        "personnummer"
+                    )
+                )
+
+                standard.update(
+                    {
+                        "relationstype": "ikke_valid_relation",
+                        "personid": self._txt(
+                            ikke_valid_foraelder.get(
+                                "personid"
+                            )
+                        ),
+                        "personnummer": personnummer,
+                        "navn": self._txt(
+                            ikke_valid_foraelder.get("navn")
+                        ),
+                        "foedselsdato": self._txt(
+                            ikke_valid_foraelder.get(
+                                "foedselsdato"
+                            )
+                        ),
+                        "har_cpr": bool(personnummer)
+                    }
+                )
+
+            # -----------------------------------------
+            # Relation uden personoplysninger
+            # -----------------------------------------
+            else:
+                standard["relationstype"] = "ukendt_relation"
+
+            resultat.append(standard)
+
+        return {
+            "antal_foraeldre": len(resultat),
+            "foraeldre": resultat
+        }

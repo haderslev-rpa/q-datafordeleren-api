@@ -3,7 +3,10 @@
 
 
 from flask import Flask, request, jsonify
-from q_datafordeleren_api.docker_service_api.to_blue_prism_use import get_aktuel_navn_og_adresse
+from q_datafordeleren_api.docker_service_api.to_blue_prism_use import (
+    get_aktuel_navn_og_adresse,
+    lookup_cpr_full
+)
 import os
 
 app = Flask(__name__)
@@ -36,6 +39,36 @@ def cpr():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/cpr/full", methods=["POST"])
+def cpr_full():
+
+    if not check_api_key(request):
+        return jsonify(
+            {
+                "error": "Unauthorized"
+            }
+        ), 401
+
+    data = request.json
+
+    try:
+
+        result = lookup_cpr_full(
+            data["cpr"],
+            data["client_id"],
+            data["cert_path"],
+            data["key_path"]
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+
+        return jsonify(
+            {
+                "error": str(e)
+            }
+        ), 500
 
 @app.route("/health")
 def health():

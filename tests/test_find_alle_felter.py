@@ -3,20 +3,30 @@
 # -------------------------------------------------
 # Fundet ved test mod Datafordeler:
 #
-# 1. Datafordeler kræver, at beskyttelser altid er med i query
-#    (forespørgsel), ellers kommer fejl:
-#    "Required fields are missing in query selection: beskyttelser"
+# 1. Datafordeler kræver, at beskyttelser altid er med
+#    i query (forespørgsel), ellers kommer fejl:
 #
-# 2. Datafordeler tillader ikke aliases (alternative feltnavne).
-#    Man må derfor ikke skrive:
+#    "Required fields are missing in query selection:
+#     beskyttelser"
+#
+# 2. Datafordeler tillader ikke aliases
+#    (alternative feltnavne).
+#
+#    Må IKKE skrives som:
+#
 #        testField: boern
 #
-# 3. Følgende topfelter på CPRCustom_PublicSectorPerson er bekræftet:
+# 3. Følgende topfelter på
+#    CPRCustom_PublicSectorPerson
+#    er bekræftet:
+#
 #    - navne
 #    - adresseoplysninger
 #    - civilstande
-#    - foraeldremyndighedsoplysninger
 #    - boern
+#    - foraeldreoplysninger
+#    - foraeldremyndighedsoplysninger
+#    - foraeldremyndighedOver
 #    - udrejseIndrejser
 #    - forsvindinger
 #    - statsborgerskaber
@@ -26,22 +36,112 @@
 #    - kommunaleForhold
 #    - folkekirke
 #    - notater
+#    - deltBopael
 #
-# 4. Følgende topfelter findes ikke med disse navne:
-#    - foraelderoplysninger
-#    - foraelderoplysning
-#    - foraeldre
+# 4. CPR-skift kan hentes via:
+#
+#    personnumre {
+#        personnummer
+#        status
+#        virkningfra
+#        virkningtil
+#    }
+#
+# 5. Børn kan hentes via:
+#
+#    boern {
+#        virkningfra
+#
+#        barn {
+#            personid
+#            personnummer
+#            navn
+#        }
+#    }
+#
+# 6. Forældre kan hentes via:
+#
+#    foraeldreoplysninger {
+#        foraelderrolle
+#
+#        foraelder {
+#            personid
+#            personnummer
+#            navn
+#        }
+#    }
+#
+# 7. Schemaet viser, at
+#    CPRCustom_PublicSectorSimpelPerson
+#    indeholder:
+#
+#    - personid
+#    - personnummer
+#    - navn
+#    - adresseoplysninger
+#    - kontaktadresse
+#    - forsvinding
+#    - udrejseIndrejse
+#    - beskyttelser
+#
+# 8. Forældrerelationer kan være:
+#
 #    - foraelder
-#    - barn
-#    - born
-#    - deltbopael
+#      (person med CPR)
 #
-# 5. Direkte forældreopslag ser derfor ikke ud til at ligge som
-#    foraelderoplysninger på Person i GraphQL.
-#    Børn findes derimod via feltet boern.
+#    - foraelderUdenCpr
+#      (person uden CPR)
 #
-# 6. Næste skridt er at finde underfelter på boern, så vi kan hente
-#    barnets CPR-nummer.
+#    - ikkeValidRelationsForaelder
+#      (historisk/ikke-valid relation)
+#
+# 9. Barn-relation returnerer:
+#
+#    CPRCustom_PublicSectorBarnoplysning
+#
+#    hvor barnet ligger under:
+#
+#        barn
+#
+# 10. Historiske oplysninger returneres
+#     direkte fra Datafordeleren i:
+#
+#     - navne
+#     - adresseoplysninger
+#     - civilstande
+#     - personnumre
+#     - statsborgerskaber
+#
+#     via felterne:
+#
+#     - status
+#     - virkningfra
+#     - virkningtil
+#
+# 11. lookup_cpr_full() understøtter nu:
+#
+#     ✅ CPR-skift
+#     ✅ Børn
+#     ✅ Forældre
+#     ✅ Historiske adresser
+#     ✅ Historiske navne
+#     ✅ Historiske civilstande
+#     ✅ Beskyttelser
+#     ✅ Aktuel adresse
+#     ✅ Brevvurdering
+#
+# 12. De vigtigste felter i standardoutput
+#     er nu:
+#
+#     data["opslag_status"]
+#     data["personnumre"]
+#     data["boern"]
+#     data["foraeldre"]
+#
+#     samt den rå GraphQL-data i:
+#
+#     data["data"]
+#
 # -------------------------------------------------
 
 

@@ -11,3 +11,45 @@ def get_aktuel_navn_og_adresse(cpr, client_id, cert_path, key_path):
         cert_path,
         key_path
     )
+
+from q_datafordeleren_api.core.datafordeler_client import DatafordelerClient
+
+
+def get_aktuel_navn_og_adresse(
+    cpr,
+    client_id,
+    cert_path,
+    key_path
+):
+    """
+    Henter aktuel adresse.
+    """
+
+    client = DatafordelerClient()
+
+    return client.get_aktuel_navn_og_adresse(
+        cpr,
+        client_id,
+        cert_path,
+        key_path
+    )
+
+
+def lookup_cpr_full(
+    cpr,
+    client_id,
+    cert_path,
+    key_path
+):
+    """
+    Henter alle CPR-oplysninger.
+    """
+
+    client = DatafordelerClient()
+
+    return client.lookup_cpr_full(
+        cpr,
+        client_id,
+        cert_path,
+        key_path
+    )
