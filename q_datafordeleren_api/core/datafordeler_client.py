@@ -405,55 +405,121 @@ class DatafordelerClient:
     # -------------------------------------------------
     # Full CPR data
     # -------------------------------------------------
-    def lookup_cpr_full(self, cpr_number, client_id, cert_path, key_path):
-        """Henter fulde CPR data (funktion (genbrugelig kodeblok))"""
+    def lookup_cpr_full(
+        self,
+        cpr_number,
+        client_id,
+        cert_path,
+        key_path
+    ):
+        """
+        Henter fulde CPR-data.
 
-        # Fjerner bindestreg og mellemrum fra CPR før validering og opslag
-        cpr_number = self._normaliser_cpr(cpr_number)
+        Outputtet er JSON-kompatibelt og indeholder:
 
-        if not self._cpr_format_ok(cpr_number):
+        - opslag_status
+        - personnumre
+        - statsborgerskab
+        - boern
+        - foraeldre
+        - det rå GraphQL-resultat
+
+        statsborgerskab indeholder:
+        - aktuelt statsborgerskab
+        - alle registrerede statsborgerskaber
+        - landekode
+        - landets navn
+        - status
+        - virkningsdatoer
+
+        Der gemmes ingen filer.
+        """
+
+        # Fjerner bindestreg og mellemrum fra CPR.
+        cpr_number = self._normaliser_cpr(
+            cpr_number
+        )
+
+        # -------------------------------------------------
+        # Ugyldigt CPR-format
+        # -------------------------------------------------
+
+        if not self._cpr_format_ok(
+            cpr_number
+        ):
             return {
-                "opslag_status": self._build_kan_sendes_brev({
-                    **self._empty_aktuel_result(),
-                    "cpr_format_ok": False
-                }),
+                "opslag_status": (
+                    self._build_kan_sendes_brev(
+                        {
+                            **self._empty_aktuel_result(),
+                            "cpr_format_ok": False
+                        }
+                    )
+                ),
+                "personnumre": {
+                    "opslaaet_cpr": cpr_number,
+                    "aktuelt_cpr": "",
+                    "har_skiftet_cpr": False,
+                    "alle_personnumre": []
+                },
+                "statsborgerskab": {
+                    "har_statsborgerskab": False,
+                    "aktuelt_statsborgerskab": None,
+                    "antal_statsborgerskaber": 0,
+                    "alle_statsborgerskaber": []
+                },
+                "boern": {
+                    "antal_boern": 0,
+                    "boern": []
+                },
+                "foraeldre": {
+                    "antal_foraeldre": 0,
+                    "foraeldre": []
+                },
                 "data": None
             }
 
-        token = get_token(client_id, cert_path, key_path)
+        token = get_token(
+            client_id,
+            cert_path,
+            key_path
+        )
 
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": (
+                "application/graphql-response+json, "
+                "application/json"
+            )
         }
 
         query = """
         query ($cpr: [String!]!) {
-        CPRCustom_PublicSectorPerson(
+          CPRCustom_PublicSectorPerson(
             input: {
-            personnummer: {
+              personnummer: {
                 personnummer: {
-                in: $cpr
+                  in: $cpr
                 }
+              }
             }
-            }
-        ) {
+          ) {
             nodes {
+              id
+              status
+              statusdato
+              foedselsdato
+              koen
 
-            id
-            status
-            statusdato
-            foedselsdato
-            koen
-
-            personnumre {
+              personnumre {
                 personnummer
                 status
                 virkningfra
                 virkningtil
-            }
+              }
 
-            navne {
+              navne {
                 adresseringsnavn
                 fornavne
                 mellemnavn
@@ -461,140 +527,186 @@ class DatafordelerClient:
                 status
                 virkningfra
                 virkningtil
-            }
+              }
 
-            adresseoplysninger {
+              statsborgerskaber {
+                cprland {
+                  kode
+                  navn
+                  landekode
+
+                  administrativEnhedType {
+                    typeKode
+                    typeNavn
+                  }
+                }
+
+                status
+                virkningFra
+                virkningFraUsikkerhedsmarkering
+                virkningTil
+                virkningTilUsikkerhedsmarkering
+              }
+
+              adresseoplysninger {
                 status
                 virkningfra
                 virkningtil
 
                 cprAdresse {
-                daradresse
-                bygningsnummer
-                bynavn
-                cprkommunekode
-                cprkommunenavn
-                cprvejkode
-                etage
-                husnummer
-                postdistrikt
-                postnummer
-                sidedoer
-                vejadresseringsnavn
-                vejnavn
+                  daradresse
+                  bygningsnummer
+                  bynavn
+                  cprkommunekode
+                  cprkommunenavn
+                  cprvejkode
+                  etage
+                  husnummer
+                  postdistrikt
+                  postnummer
+                  sidedoer
+                  vejadresseringsnavn
+                  vejnavn
                 }
-            }
+              }
 
-            beskyttelser {
+              beskyttelser {
                 beskyttelsestype
                 status
                 virkningfra
                 virkningtil
-            }
+              }
 
-            civilstande {
+              civilstande {
                 civilstandstype
                 status
                 virkningfra
                 virkningtil
-            }
+              }
 
-            boern {
+              boern {
                 virkningfra
 
                 barn {
-                personid
-                personnummer
+                  personid
+                  personnummer
 
-                beskyttelser {
+                  beskyttelser {
                     beskyttelsestype
                     status
                     virkningfra
                     virkningtil
-                }
+                  }
 
-                navn {
+                  navn {
                     adresseringsnavn
                     fornavne
                     mellemnavn
                     efternavn
                     status
+                  }
                 }
-                }
-            }
+              }
 
-            foraeldreoplysninger {
+              foraeldreoplysninger {
                 virkningfra
                 foraelderrolle
 
                 foraelder {
-                personid
-                personnummer
+                  personid
+                  personnummer
 
-                beskyttelser {
+                  beskyttelser {
                     beskyttelsestype
                     status
                     virkningfra
                     virkningtil
-                }
+                  }
 
-                navn {
+                  navn {
                     adresseringsnavn
                     fornavne
                     mellemnavn
                     efternavn
                     status
-                }
+                  }
                 }
 
                 foraelderUdenCpr {
-                personid
-                navn
-                foedselsdato
+                  personid
+                  navn
+                  foedselsdato
                 }
 
                 ikkeValidRelationsForaelder {
-                personid
-                personnummer
-                navn
-                foedselsdato
+                  personid
+                  personnummer
+                  navn
+                  foedselsdato
                 }
+              }
             }
-            }
-        }
+          }
         }
         """
 
         body = {
             "query": query,
             "variables": {
-                "cpr": [cpr_number]
+                "cpr": [
+                    cpr_number
+                ]
             }
         }
 
-        r = requests.post(
+        response = requests.post(
             self.base_url,
             headers=headers,
-            json=body
+            json=body,
+            timeout=60
         )
 
-        print("🔍 DEBUG FULL STATUS:", r.status_code)
-        print("🔍 DEBUG FULL RESPONSE:", r.text)
+        try:
+            data = response.json()
 
-        r.raise_for_status()
+        except ValueError as error:
+            raise RuntimeError(
+                "CPR returnerede ikke gyldig JSON. "
+                f"HTTP-status: {response.status_code}. "
+                f"Svar: {response.text[:1000]}"
+            ) from error
 
-        data = r.json()
+        if data.get("errors"):
+            error_messages = [
+                error.get(
+                    "message",
+                    "Ukendt GraphQL-fejl"
+                )
+                for error in data["errors"]
+            ]
+
+            raise RuntimeError(
+                "CPR GraphQL-fejl: "
+                + " | ".join(error_messages)
+            )
+
+        response.raise_for_status()
 
         nodes = (
             data
             .get("data", {})
-            .get("CPRCustom_PublicSectorPerson", {})
+            .get(
+                "CPRCustom_PublicSectorPerson",
+                {}
+            )
             .get("nodes", [])
+            or []
         )
 
         # -------------------------------------------------
         # CPR blev ikke fundet
         # -------------------------------------------------
+
         if not nodes:
             status = self._empty_aktuel_result()
 
@@ -602,15 +714,23 @@ class DatafordelerClient:
             status["findes"] = False
 
             data["opslag_status"] = (
-                self._build_kan_sendes_brev(status)
+                self._build_kan_sendes_brev(
+                    status
+                )
             )
 
-            # Samme outputstruktur, selv når CPR ikke findes
             data["personnumre"] = {
                 "opslaaet_cpr": cpr_number,
                 "aktuelt_cpr": "",
                 "har_skiftet_cpr": False,
                 "alle_personnumre": []
+            }
+
+            data["statsborgerskab"] = {
+                "har_statsborgerskab": False,
+                "aktuelt_statsborgerskab": None,
+                "antal_statsborgerskaber": 0,
+                "alle_statsborgerskaber": []
             }
 
             data["boern"] = {
@@ -628,14 +748,17 @@ class DatafordelerClient:
         # -------------------------------------------------
         # CPR blev fundet
         # -------------------------------------------------
+
         node = nodes[0]
 
-        # Aktuel status, navn og adresse
+        # Aktuel status, navn og adresse.
         data["opslag_status"] = (
-            self._build_aktuel_result(node)
+            self._build_aktuel_result(
+                node
+            )
         )
 
-        # Aktuelt og historiske CPR-numre
+        # Aktuelt og historiske CPR-numre.
         data["personnumre"] = (
             self._build_personnumre(
                 personnumre=node.get(
@@ -646,14 +769,27 @@ class DatafordelerClient:
             )
         )
 
-        # Børn
-        data["boern"] = (
-            self._build_boern(
-                node.get("boern", [])
+        # Aktuelt og historiske statsborgerskaber.
+        data["statsborgerskab"] = (
+            self._build_statsborgerskaber(
+                node.get(
+                    "statsborgerskaber",
+                    []
+                )
             )
         )
 
-        # Forældre
+        # Børn.
+        data["boern"] = (
+            self._build_boern(
+                node.get(
+                    "boern",
+                    []
+                )
+            )
+        )
+
+        # Forældre.
         data["foraeldre"] = (
             self._build_foraeldre(
                 node.get(
@@ -713,6 +849,161 @@ class DatafordelerClient:
             "aktuelt_cpr": aktuelt_cpr,
             "har_skiftet_cpr": har_skiftet_cpr,
             "alle_personnumre": personnumre
+        }
+
+    # -------------------------------------------------
+    # Byg statsborgerskabsoplysninger
+    # -------------------------------------------------
+
+    def _build_statsborgerskaber(
+        self,
+        statsborgerskaber
+    ):
+        """
+        Bygger en fast struktur med statsborgerskaber.
+
+        Outputtet er JSON-kompatibelt og indeholder:
+
+        {
+            "har_statsborgerskab": true,
+            "aktuelt_statsborgerskab": {
+                "kode": "",
+                "land": "",
+                "landekode": "",
+                "status": "aktuel",
+                "virkning_fra": "",
+                "virkning_fra_usikker": false,
+                "virkning_til": "",
+                "virkning_til_usikker": false
+            },
+            "antal_statsborgerskaber": 1,
+            "alle_statsborgerskaber": []
+        }
+
+        Det aktuelle statsborgerskab findes først via
+        status = "aktuel". Hvis ingen post har denne
+        status, vælges en post uden virkningTil.
+        """
+
+        normaliserede_statsborgerskaber = []
+
+        for statsborgerskab in (
+            statsborgerskaber or []
+        ):
+            cpr_land = (
+                statsborgerskab.get(
+                    "cprland"
+                )
+                or {}
+            )
+
+            administrativ_enhedstype = (
+                cpr_land.get(
+                    "administrativEnhedType"
+                )
+                or {}
+            )
+
+            normaliseret_statsborgerskab = {
+                "kode": self._txt(
+                    cpr_land.get("kode")
+                ),
+                "land": self._txt(
+                    cpr_land.get("navn")
+                ),
+                "landekode": self._txt(
+                    cpr_land.get("landekode")
+                ),
+                "administrativ_enhed_type_kode": (
+                    self._txt(
+                        administrativ_enhedstype.get(
+                            "typeKode"
+                        )
+                    )
+                ),
+                "administrativ_enhed_type_navn": (
+                    self._txt(
+                        administrativ_enhedstype.get(
+                            "typeNavn"
+                        )
+                    )
+                ),
+                "status": self._txt(
+                    statsborgerskab.get(
+                        "status"
+                    )
+                ),
+                "virkning_fra": self._txt(
+                    statsborgerskab.get(
+                        "virkningFra"
+                    )
+                ),
+                "virkning_fra_usikker": bool(
+                    statsborgerskab.get(
+                        "virkningFraUsikkerhedsmarkering",
+                        False
+                    )
+                ),
+                "virkning_til": self._txt(
+                    statsborgerskab.get(
+                        "virkningTil"
+                    )
+                ),
+                "virkning_til_usikker": bool(
+                    statsborgerskab.get(
+                        "virkningTilUsikkerhedsmarkering",
+                        False
+                    )
+                )
+            }
+
+            normaliserede_statsborgerskaber.append(
+                normaliseret_statsborgerskab
+            )
+
+        aktuelt_statsborgerskab = next(
+            (
+                statsborgerskab
+                for statsborgerskab
+                in normaliserede_statsborgerskaber
+                if (
+                    statsborgerskab.get(
+                        "status",
+                        ""
+                    ).lower()
+                    == "aktuel"
+                )
+            ),
+            None
+        )
+
+        # Fallback hvis status ikke er "aktuel".
+        if aktuelt_statsborgerskab is None:
+            aktuelt_statsborgerskab = next(
+                (
+                    statsborgerskab
+                    for statsborgerskab
+                    in normaliserede_statsborgerskaber
+                    if not statsborgerskab.get(
+                        "virkning_til"
+                    )
+                ),
+                None
+            )
+
+        return {
+            "har_statsborgerskab": bool(
+                normaliserede_statsborgerskaber
+            ),
+            "aktuelt_statsborgerskab": (
+                aktuelt_statsborgerskab
+            ),
+            "antal_statsborgerskaber": len(
+                normaliserede_statsborgerskaber
+            ),
+            "alle_statsborgerskaber": (
+                normaliserede_statsborgerskaber
+            )
         }
     
     # -------------------------------------------------
