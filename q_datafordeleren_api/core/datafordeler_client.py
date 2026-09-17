@@ -385,8 +385,6 @@ class DatafordelerClient:
             json=body
         )
 
-        print("🔍 DEBUG AKTUEL STATUS:", r.status_code)
-        print("🔍 DEBUG AKTUEL RESPONSE:", r.text)
 
         r.raise_for_status()
 
